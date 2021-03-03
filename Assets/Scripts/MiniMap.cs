@@ -1,143 +1,149 @@
-﻿using System.Collections;
+﻿
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-
+using UnityEngine.UI;
 
 public class MiniMap : MonoBehaviour
 {
-    public RectTransform mapMask;//地图遮罩
-    public RectTransform miniMapBg;//地图背景
+    [Header("地图相关坐标")]
+    public Transform scene_max, scene_min;//最远点和最近点
+    float scene_Long, scene_High; //地图的实际 宽 高
+    Vector3 scene_Map_Point;
+
+    [Header("地图和遮罩的Sprite")]
+    public RectTransform map_Mask;//地图遮罩
+    public RectTransform mini_Map;//地图背景
+    Image map_Image;
+    public string path;//地图图片路径和名字前缀，需要在Resources下
+    public float[] floor;//每个楼层的高度，需要多加一个极限高度比如1000等
+
+    [Header("玩家的Sprite")]
     public RectTransform _playerIcon;//玩家锚点
 
+    [Header("缩放比例值")]
+    public float zoom_Value = 5;
+
     public Transform _player;//玩家
-    public Transform max, min;//最远点和最近点
-    float h, v; //地图的实际 宽 高
+    public Transform xxx;
+    public RectTransform xxxIcon;
 
-    private Vector3[] mapPos = new Vector3[4];
-    private Vector3[] maskPos = new Vector3[4];
+    Vector3 temp_Zoom_Value, temp_Spin_Value, temp_map_pos,
+            temp_player_pos_1, temp_player_pos_2;
 
-    Vector2 temp, temp_p, temp_m, temp_Zoom;
 
     private void Awake()
     {
-        mapMask.GetWorldCorners(mapPos);
-        miniMapBg.GetWorldCorners(maskPos);
+        map_Image = mini_Map.GetComponent<Image>();
 
-        print(mapPos[0]); print(mapPos[1]); print(mapPos[2]); print(mapPos[3]);
-
-        h = max.position.z - min.position.z;
-        v = max.position.x - min.position.x;
+        PosInitialization(scene_max, scene_min, out scene_Long, out scene_High, out scene_Map_Point);
 
     }
 
     private void Update()
     {
-        MiniMapFunction();
-    }
+        Use_Player_MiniMapFunction(_player, _playerIcon);
+        //Other_Object_MiniMapFunction(xxx, xxxIcon);
 
-    public void MiniMapFunction()
-    {
-        IconRot();
         if (Input.GetKey(KeyCode.O))
         {
-            MapZoom(5);
-            PosChange();
+            MapZoom(zoom_Value);
             return;
         }
         if (Input.GetKey(KeyCode.P))
         {
-            MapZoom(-5);
-            PosChange();
+            MapZoom(-zoom_Value);
             return;
         }
-
-
-        temp_p.x = Mathf.Clamp((_player.position.x / v * miniMapBg.rect.width), -miniMapBg.rect.width / 2, miniMapBg.rect.width / 2);
-        temp_p.y = Mathf.Clamp((_player.position.z / h * miniMapBg.rect.height), -miniMapBg.rect.height / 2, miniMapBg.rect.height / 2);
-
-        //_Picon.Set((_player.position.x / v * miniMapBg.rect.width), (_player.position.z / h * miniMapBg.rect.height));
-        //print(_Picon);
-
-        temp_m.x = (-_player.position.x / v * miniMapBg.rect.width) - mapMask.rect.width / 2;
-        temp_m.y = (-_player.position.z / h * miniMapBg.rect.height) - mapMask.rect.height / 2;
-
-        //_Micon.Set((-_player.position.x / v * miniMapBg.rect.width) - mapMask.rect.width / 2, (-_player.position.z / h * miniMapBg.rect.height) - mapMask.rect.height / 2);
-        //print(_Micon);
-
-
-        if ((_playerIcon.localPosition.x <= ((mapMask.rect.width - miniMapBg.rect.width) / 2) && _playerIcon.localPosition.y <= ((mapMask.rect.height - miniMapBg.rect.height) / 2))
-            || (_playerIcon.localPosition.x <= ((mapMask.rect.width - miniMapBg.rect.width) / 2) && _playerIcon.localPosition.y >= -((mapMask.rect.height - miniMapBg.rect.height) / 2))
-            || (_playerIcon.localPosition.x >= -((mapMask.rect.width - miniMapBg.rect.width) / 2) && _playerIcon.localPosition.y <= ((mapMask.rect.height - miniMapBg.rect.height) / 2))
-            || (_playerIcon.localPosition.x >= -((mapMask.rect.width - miniMapBg.rect.width) / 2) && _playerIcon.localPosition.y >= -((mapMask.rect.height - miniMapBg.rect.height) / 2)))
-        {
-            print("四角");
-            _playerIcon.localPosition = temp_p;
-        }
-        else if (_playerIcon.localPosition.x <= ((mapMask.rect.width - miniMapBg.rect.width) / 2) || _playerIcon.localPosition.x >= -((mapMask.rect.width - miniMapBg.rect.width) / 2))
-        {
-            print("左边和右边");
-            _playerIcon.localPosition = temp_p;
-            temp.x = miniMapBg.localPosition.x;
-            temp.y = temp_m.y;
-            miniMapBg.localPosition = temp;
-        }
-        else if (_playerIcon.localPosition.y <= ((mapMask.rect.height - miniMapBg.rect.height) / 2) || _playerIcon.localPosition.y >= -((mapMask.rect.height - miniMapBg.rect.height) / 2))
-        {
-            print("上方和下方");
-            _playerIcon.localPosition = temp_p;
-            temp.x = temp_m.x;
-            temp.y = miniMapBg.localPosition.y;
-            miniMapBg.localPosition = temp;
-        }
-        else
-        {
-            print("普通");
-            _playerIcon.localPosition = temp_p;
-            miniMapBg.localPosition = temp_m;
-        }
-
     }
 
-    public void IconRot()
+
+  //玩家在地图上定位
+    public void Use_Player_MiniMapFunction(Transform player, RectTransform player_Icon)
     {
-        //print("玩家的坐标" + _player.eulerAngles);
-        //print("玩家图标的坐标" + _playerIcon.rotation);
-        _playerIcon.rotation = Quaternion.Euler(new Vector3(0, 0, -_player.eulerAngles.y));
+        MapPosSet(scene_Long, scene_High, scene_Map_Point, player, mini_Map, map_Mask);
+        IconPosSet(scene_Long, scene_High, scene_Map_Point, mini_Map, player, player_Icon);
+        IconSpin(player, player_Icon);
+        MapImageSwitch(floor, path, player, map_Image);
     }
 
-    public void MapZoom(float _offset)
+    //其他物体在地图上定位
+    public void Other_Object_MiniMapFunction(Transform item, RectTransform item_Icon)
     {
-        temp_Zoom.x = Mathf.Clamp(miniMapBg.rect.width + _offset, mapMask.rect.width, mapMask.rect.width * 5);
-        temp_Zoom.y = Mathf.Clamp(miniMapBg.rect.height + _offset, mapMask.rect.height, mapMask.rect.height * 5);
-        miniMapBg.sizeDelta = temp_Zoom;
+        IconPosSet(scene_Long, scene_High, scene_Map_Point, mini_Map, item, item_Icon);
+        IconSpin(item, item_Icon);
     }
 
-    public void PosChange()
+    //坐标初始化
+    public virtual void PosInitialization(Transform scene_max, Transform scene_min, out float scene_Long, out float scene_High, out Vector3 scene_Map_Point)
     {
-        temp_p.x = Mathf.Clamp((_player.position.x / v * miniMapBg.rect.width), -miniMapBg.rect.width / 2, miniMapBg.rect.width / 2);
-        temp_p.y = Mathf.Clamp((_player.position.z / h * miniMapBg.rect.height), -miniMapBg.rect.height / 2, miniMapBg.rect.height / 2);
+        scene_High = scene_max.localPosition.z - scene_min.localPosition.z;
+        scene_Long = scene_max.localPosition.x - scene_min.localPosition.x;
 
-        temp_m.x = (-_player.position.x / v * miniMapBg.rect.width) - mapMask.rect.width / 2;
-        temp_m.y = (-_player.position.z / h * miniMapBg.rect.height) - mapMask.rect.height / 2;
+            scene_Map_Point = scene_max.localPosition + scene_min.localPosition;
+            scene_Map_Point = scene_Map_Point / 2;
 
-        _playerIcon.localPosition = temp_p;
-        
+        //scene_Map_Point = scene_max.localPosition - scene_min.localPosition;
+       
+        //if (scene_Map_Point.y != 0 && scene_Map_Point.x != 0 && scene_Map_Point.z != 0)
+        //{
+        //    print(scene_Map_Point);
+        //    return;
+        //}
+        //else
+        //{
+        //    return;
+        //}
 
+    }
 
+    //旋转
+    public virtual void IconSpin(Transform player, RectTransform playerIcon)
+    {
+        temp_Spin_Value.x = 0;
+        temp_Spin_Value.y = 0;
+        temp_Spin_Value.z = -player.eulerAngles.y;
+        playerIcon.rotation = Quaternion.Euler(temp_Spin_Value);
+    }
 
+    //缩放
+    public virtual void MapZoom(float _offset)
+    {
+        temp_Zoom_Value.x = Mathf.Clamp(mini_Map.rect.width + _offset, map_Mask.rect.width, map_Mask.rect.width * 5);
+        temp_Zoom_Value.y = Mathf.Clamp(mini_Map.rect.height + _offset, map_Mask.rect.height, map_Mask.rect.height * 5);
+        mini_Map.sizeDelta = temp_Zoom_Value;
+    }
 
+    //图标定位
+    public virtual void IconPosSet(float scene_Long, float scene_High, Vector3 scene_Map_Point, RectTransform mini_Map, Transform player, RectTransform playerIcon)
+    {
+        temp_player_pos_2 = player.position - scene_Map_Point;
+        temp_player_pos_1.x = Mathf.Clamp((temp_player_pos_2.x / scene_Long * mini_Map.rect.width), -mini_Map.rect.width / 2, mini_Map.rect.width / 2);
+        temp_player_pos_1.y = Mathf.Clamp((temp_player_pos_2.z / scene_High * mini_Map.rect.height), -mini_Map.rect.height / 2, mini_Map.rect.height / 2);
+        playerIcon.localPosition = temp_player_pos_1;
+        //print(playerIcon.localPosition);
+    }
 
+    //地图定位
+    public virtual void MapPosSet(float scene_Long, float scene_High, Vector3 scene_Map_Point, Transform player, RectTransform mini_Map, RectTransform map_Mask)
+    {
+        temp_player_pos_2 = player.position - scene_Map_Point;
+        temp_map_pos.x = Mathf.Clamp((-temp_player_pos_2.x / scene_Long * mini_Map.rect.width) - map_Mask.rect.width / 2, -(mini_Map.rect.width / 2), (mini_Map.rect.width / 2) - map_Mask.rect.width);
+        temp_map_pos.y = Mathf.Clamp((-temp_player_pos_2.z / scene_High * mini_Map.rect.height) - map_Mask.rect.height / 2, -(mini_Map.rect.height / 2), (mini_Map.rect.height / 2) - map_Mask.rect.height);
+        mini_Map.localPosition = temp_map_pos;
+        //print(mini_Map.localPosition);
+    }
 
-        if (miniMapBg.sizeDelta == mapMask.sizeDelta)
+    //地图楼层切换
+    public virtual void MapImageSwitch(float[] floor, string path, Transform player, Image map_Image)
+    {
+        for (int i = 0; i < floor.Length - 1; i++)
         {
-            miniMapBg.localPosition = new Vector2( -mapMask.rect.width / 2, -mapMask.rect.height / 2);
-            return;
-        }
-        else
-        {
-            miniMapBg.localPosition = temp_m;
+            if (player.position.y >= floor[i] && player.position.y <= floor[i + 1])
+            {
+                map_Image.sprite = Resources.Load<Sprite>(path + i.ToString());
+            }
         }
     }
 
-   
 }
