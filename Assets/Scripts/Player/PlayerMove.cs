@@ -22,11 +22,15 @@ public class PlayerMove : MonoBehaviour
     Vector3 velocity;
     bool isGrounded;
 
+    
+    public Transform[] playerPosRecord;
+    public int nowPos=0;
+
     // Start is called before the first frame update
     void Start()
     {
         playerController = gameObject.GetComponent<CharacterController>();
-        
+        this.transform.position = playerPosRecord[0].position;
     }
 
     // Update is called once per frame
@@ -57,4 +61,11 @@ public class PlayerMove : MonoBehaviour
         velocity.y += gravity * Time.deltaTime;
         playerController.Move(velocity*Time.deltaTime);
     }
+
+    public void ReSetPos()
+    {
+        this.transform.position = playerPosRecord[nowPos].position;
+    }
 }
+
+
